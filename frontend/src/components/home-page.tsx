@@ -16,18 +16,16 @@ import { formatRange } from '@/lib/format'
 export function HomePage() {
   const meetings = useMeetings()
   const [mode, setMode] = useState<ViewMode>('list')
-  const [anchor, setAnchor] = useState(() => new Date())
+  const [anchor, setAnchor] = useState<Date>(() => new Date())
   const days = visibleDays(mode, anchor)
   const [formOpen, setFormOpen] = useState(false)
-  // Kept after the form closes so the dialog doesn't flip to "Add meeting" while fading out.
   const [meetingToEdit, setMeetingToEdit] = useState<Meeting | null>(null)
   const [newMeetingStart, setNewMeetingStart] = useState<Date | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [viewedId, setViewedId] = useState<string | null>(null)
   const [meetingToDelete, setMeetingToDelete] = useState<Meeting | null>(null)
 
-  // Look the meeting up in the list so the details stay fresh after an edit.
-  const viewedMeeting = meetings.data?.find((m) => m.id === viewedId) ?? null
+  const viewedMeeting = meetings.data?.find((m: Meeting) => m.id === viewedId) ?? null
 
   const openCreate = (start: Date | null = null) => {
     setMeetingToEdit(null)
@@ -55,14 +53,13 @@ export function HomePage() {
 
   return (
     <div className="flex h-svh flex-col">
-      {/* One compact bar, so the calendar gets the rest of the screen. */}
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2.5 md:px-5">
         <h1 className="order-1 text-3xl leading-none">Meetings</h1>
         <div className="order-3 w-full md:order-2 md:w-auto md:flex-1">
           <DateNavigation
             rangeLabel={formatRange(mode, days)}
-            onPrev={() => setAnchor((d) => addDays(d, -STEP_DAYS[mode]))}
-            onNext={() => setAnchor((d) => addDays(d, STEP_DAYS[mode]))}
+            onPrev={() => setAnchor((d: Date) => addDays(d, -STEP_DAYS[mode]))}
+            onNext={() => setAnchor((d: Date) => addDays(d, STEP_DAYS[mode]))}
             onToday={() => setAnchor(new Date())}
           />
         </div>

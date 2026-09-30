@@ -18,7 +18,7 @@ import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useCreateParticipant, useParticipants } from '@/lib/queries'
-import { ApiError } from '@/lib/api'
+import { ApiError, type Participant } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 const newParticipantSchema = z.object({
@@ -37,12 +37,12 @@ export function ParticipantPicker({ id, value, onChange, invalid }: Props) {
   const [open, setOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const participants = useParticipants()
-  const selected = (participants.data ?? []).filter((p) => value.includes(p.id))
+  const selected = (participants.data ?? []).filter((p: Participant) => value.includes(p.id))
 
   const toggle = (participantId: string) =>
     onChange(
       value.includes(participantId)
-        ? value.filter((v) => v !== participantId)
+        ? value.filter((v: string) => v !== participantId)
         : [...value, participantId],
     )
 
@@ -50,7 +50,7 @@ export function ParticipantPicker({ id, value, onChange, invalid }: Props) {
     <div className="flex flex-col gap-2">
       <Popover
         open={open}
-        onOpenChange={(next) => {
+        onOpenChange={(next: boolean) => {
           setOpen(next)
           if (!next) setCreating(false)
         }}
@@ -75,7 +75,7 @@ export function ParticipantPicker({ id, value, onChange, invalid }: Props) {
           {creating ? (
             <NewParticipantForm
               onCancel={() => setCreating(false)}
-              onCreated={(participantId) => {
+              onCreated={(participantId: string) => {
                 onChange([...value, participantId])
                 setCreating(false)
               }}
@@ -88,7 +88,7 @@ export function ParticipantPicker({ id, value, onChange, invalid }: Props) {
                   {participants.isLoading ? 'Loading...' : 'No participants found.'}
                 </CommandEmpty>
                 <CommandGroup>
-                  {participants.data?.map((p) => (
+                  {participants.data?.map((p: Participant) => (
                     <CommandItem
                       key={p.id}
                       value={`${p.name} ${p.email}`}
@@ -119,7 +119,7 @@ export function ParticipantPicker({ id, value, onChange, invalid }: Props) {
 
       {selected.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {selected.map((p) => (
+          {selected.map((p: Participant) => (
             <Badge key={p.id} variant="secondary" className="gap-1 pr-1">
               {p.name}
               <button
@@ -138,8 +138,6 @@ export function ParticipantPicker({ id, value, onChange, invalid }: Props) {
   )
 }
 
-// Rendered inside a portal, but React still bubbles submit events to the
-// meeting form, so this deliberately avoids a nested <form>.
 function NewParticipantForm({
   onCancel,
   onCreated,
@@ -161,14 +159,14 @@ function NewParticipantForm({
     }
     setErrors({})
     createParticipant.mutate(parsed.data, {
-      onSuccess: (participant) => {
+      onSuccess: (participant: Participant) => {
         toast.success(`Added ${participant.name}`)
         onCreated(participant.id)
       },
-      onError: (error) => {
+      onError: (error: unknown) => {
         if (error instanceof ApiError && error.status === 409) {
           setErrors({ email: error.message })
-        } else {
+        } else if (error instanceof Error) {
           toast.error(error.message)
         }
       },
@@ -192,7 +190,7 @@ function NewParticipantForm({
           autoFocus
           value={name}
           aria-invalid={!!errors.name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
         />
         <FieldError>{errors.name}</FieldError>
       </Field>
@@ -203,7 +201,7 @@ function NewParticipantForm({
           type="email"
           value={email}
           aria-invalid={!!errors.email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
         />
         <FieldError>{errors.email}</FieldError>
       </Field>
