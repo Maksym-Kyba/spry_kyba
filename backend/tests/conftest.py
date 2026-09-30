@@ -1,17 +1,16 @@
-import json
+import asyncio
 import os
-import time
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator
+from pathlib import Path
 
 import asyncpg
-import jwt
 import pytest
-from cryptography.hazmat.primitives.asymmetric import rsa
+from alembic import command
+from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.auth import TokenVerifier, get_verifier
 from app.config import settings
 from app.db import get_session
 from app.main import app
@@ -23,46 +22,6 @@ TEST_DATABASE_URL = os.environ.get(
     .set(database=f"{make_url(settings.database_url).database}_test")
     .render_as_string(hide_password=False),
 )
-
-
-# Tokens are signed with a throwaway key; the verifier gets it as a preloaded JWKS, exactly as
-# on AWS, so no test talks to Cognito.
-POOL_ID = "us-east-1_TestPool"
-CLIENT_ID = "test-client"
-ISSUER = f"https://cognito-idp.us-east-1.amazonaws.com/{POOL_ID}"
-KID = "test-key"
-PRIVATE_KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-JWKS = json.dumps(
-    {
-        "keys": [
-            {
-                **json.loads(jwt.algorithms.RSAAlgorithm.to_jwk(PRIVATE_KEY.public_key())),
-                "kid": KID,
-                "alg": "RS256",
-                "use": "sig",
-            }
-        ]
-    }
-)
-
-TokenFactory = Callable[..., str]
-
-
-def make_token(sub: str = "alice", **claims) -> str:
-    """A Cognito-style ID token; keyword arguments override or add claims."""
-    now = int(time.time())
-    payload = {
-        "sub": sub,
-        "email": f"{sub}@example.com",
-        "name": sub.title(),
-        "token_use": "id",
-        "aud": CLIENT_ID,
-        "iss": ISSUER,
-        "iat": now,
-        "exp": now + 3600,
-        **claims,
-    }
-    return jwt.encode(payload, PRIVATE_KEY, algorithm="RS256", headers={"kid": KID})
 
 
 async def _ensure_database(url: str) -> None:
@@ -84,15 +43,27 @@ async def _ensure_database(url: str) -> None:
         await conn.close()
 
 
+def _run_migrations(url: str, downgrade: bool = False) -> None:
+    alembic_ini = Path(__file__).resolve().parent.parent / "alembic.ini"
+    alembic_cfg = Config(str(alembic_ini))
+    alembic_cfg.set_main_option("sqlalchemy.url", url)
+    if downgrade:
+        command.downgrade(alembic_cfg, "base")
+    else:
+        command.upgrade(alembic_cfg, "head")
+
+
 @pytest.fixture(scope="session")
 async def engine():
     await _ensure_database(TEST_DATABASE_URL)
+    # Schema is created and modified exclusively through Alembic migrations
+    # (Base.metadata.create_all is forbidden).
+    await asyncio.to_thread(_run_migrations, TEST_DATABASE_URL, False)
+
     engine = create_async_engine(TEST_DATABASE_URL)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
     yield engine
     await engine.dispose()
+    await asyncio.to_thread(_run_migrations, TEST_DATABASE_URL, True)
 
 
 @pytest.fixture
@@ -107,13 +78,9 @@ async def client(engine) -> AsyncIterator[AsyncClient]:
         async with sessionmaker() as session:
             yield session
 
-    verifier = TokenVerifier(POOL_ID, CLIENT_ID, JWKS)
     app.dependency_overrides[get_session] = override_session
-    app.dependency_overrides[get_verifier] = lambda: verifier
-    # Signed in as "alice"; tests pass other headers to act as someone else.
-    headers = {"Authorization": f"Bearer {make_token('alice')}"}
     async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test", headers=headers
+        transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
         yield client
     app.dependency_overrides.clear()

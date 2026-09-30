@@ -10,7 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { useDeleteMeeting } from '@/hooks/queries'
+import { useDeleteMeeting } from '@/lib/queries'
 import type { Meeting } from '@/lib/api'
 
 type Props = {

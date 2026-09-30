@@ -17,7 +17,7 @@ import {
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { useCreateParticipant, useParticipants } from '@/hooks/queries'
+import { useCreateParticipant, useParticipants } from '@/lib/queries'
 import { ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
 

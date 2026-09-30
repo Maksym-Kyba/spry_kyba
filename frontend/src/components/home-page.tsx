@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { addDays } from 'date-fns'
-import { LogOutIcon, PlusIcon } from 'lucide-react'
-import { Link } from 'react-router'
+import { PlusIcon } from 'lucide-react'
 
 import { DateNavigation, ViewSwitcher } from '@/components/calendar-toolbar'
 import { DeleteMeetingDialog } from '@/components/delete-meeting-dialog'
@@ -9,14 +8,12 @@ import { MeetingDetailsDialog } from '@/components/meeting-details-dialog'
 import { MeetingFormDialog } from '@/components/meeting-form-dialog'
 import { MeetingsView } from '@/components/meetings-view'
 import { Button } from '@/components/ui/button'
-import { useMeetings } from '@/hooks/queries'
+import { useMeetings } from '@/lib/queries'
 import type { Meeting } from '@/lib/api'
-import { useAuth } from '@/lib/auth'
 import { STEP_DAYS, visibleDays, type ViewMode } from '@/lib/calendar'
 import { formatRange } from '@/lib/format'
 
 export function HomePage() {
-  const { user, signOut } = useAuth()
   const meetings = useMeetings()
   const [mode, setMode] = useState<ViewMode>('list')
   const [anchor, setAnchor] = useState(() => new Date())
@@ -75,27 +72,6 @@ export function HomePage() {
             <PlusIcon />
             <span className="max-sm:hidden">Add meeting</span>
           </Button>
-          {user && (
-            <div className="flex items-center gap-1">
-              <Link
-                to="/profile"
-                className="flex size-8 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-secondary-foreground transition-colors hover:bg-secondary/80 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-                aria-label="Profile"
-                title={`${user.name} · ${user.email}\nEdit profile`}
-              >
-                {user.name.charAt(0).toUpperCase()}
-              </Link>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Sign out"
-                title="Sign out"
-                onClick={signOut}
-              >
-                <LogOutIcon />
-              </Button>
-            </div>
-          )}
         </div>
       </header>
       <div className="hairline" />

@@ -5,7 +5,7 @@ import { TimeGrid } from '@/components/time-grid'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useMeetings } from '@/hooks/queries'
+import { useMeetings } from '@/lib/queries'
 import type { Meeting } from '@/lib/api'
 import type { ViewMode } from '@/lib/calendar'
 

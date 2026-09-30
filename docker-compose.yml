@@ -22,8 +22,6 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL}
       CORS_ORIGINS: ${CORS_ORIGINS}
-      COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
-      COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
     ports:
       - "8000:8000"
     depends_on:
@@ -31,14 +29,7 @@ services:
         condition: service_healthy
 
   frontend:
-    build:
-      context: ./frontend
-      # Public Cognito ids, baked into the bundle at build time (make deploy-auth writes them).
-      args:
-        COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
-        COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
-        COGNITO_DOMAIN: ${COGNITO_DOMAIN:-}
-        COGNITO_GOOGLE_ENABLED: ${COGNITO_GOOGLE_ENABLED:-false}
+    build: ./frontend
     restart: unless-stopped
     ports:
       - "3000:80"

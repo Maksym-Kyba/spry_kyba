@@ -21,7 +21,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Textarea } from '@/components/ui/textarea'
-import { useCreateMeeting, useUpdateMeeting } from '@/hooks/queries'
+import { useCreateMeeting, useUpdateMeeting } from '@/lib/queries'
 import type { Meeting } from '@/lib/api'
 
 const timePattern = /^\d{2}:\d{2}$/

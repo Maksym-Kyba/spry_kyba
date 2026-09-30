@@ -95,6 +95,23 @@ async def test_list_meetings_sorted_by_start(client: AsyncClient) -> None:
     assert [m["title"] for m in response.json()] == ["Sooner", "Later"]
 
 
+async def test_get_meeting(client: AsyncClient) -> None:
+    olena = await make_participant(client, "Olena Koval", "olena@example.com")
+    created = (
+        await client.post("/api/meetings", json=meeting_payload(participant_ids=[olena["id"]]))
+    ).json()
+
+    response = await client.get(f"/api/meetings/{created['id']}")
+    assert response.status_code == 200
+    assert response.json()["id"] == created["id"]
+
+
+async def test_get_missing_meeting(client: AsyncClient) -> None:
+    response = await client.get(f"/api/meetings/{uuid.uuid4()}")
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Meeting not found"}
+
+
 async def test_update_meeting(client: AsyncClient) -> None:
     olena = await make_participant(client, "Olena Koval", "olena@example.com")
     taras = await make_participant(client, "Taras Shevchuk", "taras@example.com")

@@ -8,15 +8,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str = "postgresql+asyncpg://meetings:meetings@localhost:5432/meetings"
-    # Lambda serves one request per instance at a time, so it runs with a pool of 1.
     db_pool_size: int = 5
     db_max_overflow: int = 10
-    # Cognito user pool and app client whose ID tokens the API accepts (make deploy-auth).
-    cognito_user_pool_id: str = ""
-    cognito_client_id: str = ""
-    # The pool's jwks.json. Set on AWS, where the function has no internet access; locally the
-    # keys are downloaded on first use.
-    cognito_jwks: str = ""
     cors_origins: Annotated[list[str], NoDecode] = [
         "http://localhost:5173",
         "http://localhost:3000",

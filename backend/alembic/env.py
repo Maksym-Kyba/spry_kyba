@@ -19,9 +19,13 @@ target_metadata = Base.metadata
 MIGRATION_LOCK_ID = 7_120_531
 
 
+def get_url() -> str:
+    return config.get_main_option("sqlalchemy.url") or settings.database_url
+
+
 def run_migrations_offline() -> None:
     context.configure(
-        url=settings.database_url,
+        url=get_url(),
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -43,7 +47,7 @@ def do_run_migrations(connection) -> None:
 
 
 async def run_migrations_online() -> None:
-    engine = create_async_engine(settings.database_url)
+    engine = create_async_engine(get_url())
     async with engine.connect() as connection:
         await connection.run_sync(do_run_migrations)
     await engine.dispose()

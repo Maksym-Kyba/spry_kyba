@@ -1,5 +1,6 @@
 [project]
-name = "newproject"
+name = "meetings"
 version = "0.1.0"
+description = "Meetings monorepo"
 requires-python = ">=3.14"
 dependencies = []

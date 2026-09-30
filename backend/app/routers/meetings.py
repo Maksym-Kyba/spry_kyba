@@ -5,20 +5,18 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.auth import CurrentUser
 from app.db import SessionDep
-from app.models import Meeting, Participant, User
+from app.models import Meeting, Participant
 from app.schemas import MeetingCreate, MeetingRead
 
 router = APIRouter(prefix="/meetings", tags=["meetings"])
 
 
-async def _get_meeting(session: AsyncSession, meeting_id: uuid.UUID, user: User) -> Meeting:
-    """The user's meeting; someone else's meeting is reported as missing, not forbidden."""
+async def _get_meeting(session: AsyncSession, meeting_id: uuid.UUID) -> Meeting:
     meeting = await session.scalar(
         select(Meeting)
         .options(selectinload(Meeting.participants))
-        .where(Meeting.id == meeting_id, Meeting.owner_id == user.id)
+        .where(Meeting.id == meeting_id)
     )
     if meeting is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Meeting not found")
@@ -26,19 +24,18 @@ async def _get_meeting(session: AsyncSession, meeting_id: uuid.UUID, user: User)
 
 
 @router.get("", response_model=list[MeetingRead])
-async def list_meetings(session: SessionDep, user: CurrentUser) -> list[Meeting]:
+async def list_meetings(session: SessionDep) -> list[Meeting]:
     result = await session.scalars(
         select(Meeting)
         .options(selectinload(Meeting.participants))
-        .where(Meeting.owner_id == user.id)
         .order_by(Meeting.starts_at, Meeting.created_at)
     )
     return list(result)
 
 
 @router.get("/{meeting_id}", response_model=MeetingRead)
-async def get_meeting(meeting_id: uuid.UUID, session: SessionDep, user: CurrentUser) -> Meeting:
-    return await _get_meeting(session, meeting_id, user)
+async def get_meeting(meeting_id: uuid.UUID, session: SessionDep) -> Meeting:
+    return await _get_meeting(session, meeting_id)
 
 
 async def _get_participants(
@@ -58,7 +55,7 @@ async def _get_participants(
 
 
 @router.post("", response_model=MeetingRead, status_code=status.HTTP_201_CREATED)
-async def create_meeting(payload: MeetingCreate, session: SessionDep, user: CurrentUser) -> Meeting:
+async def create_meeting(payload: MeetingCreate, session: SessionDep) -> Meeting:
     participants = await _get_participants(session, payload.participant_ids)
     meeting = Meeting(
         title=payload.title,
@@ -67,18 +64,17 @@ async def create_meeting(payload: MeetingCreate, session: SessionDep, user: Curr
         ends_at=payload.ends_at,
         place=payload.place,
         participants=participants,
-        owner_id=user.id,
     )
     session.add(meeting)
     await session.commit()
-    return await _get_meeting(session, meeting.id, user)
+    return await _get_meeting(session, meeting.id)
 
 
 @router.put("/{meeting_id}", response_model=MeetingRead)
 async def update_meeting(
-    meeting_id: uuid.UUID, payload: MeetingCreate, session: SessionDep, user: CurrentUser
+    meeting_id: uuid.UUID, payload: MeetingCreate, session: SessionDep
 ) -> Meeting:
-    meeting = await _get_meeting(session, meeting_id, user)
+    meeting = await _get_meeting(session, meeting_id)
     meeting.participants = await _get_participants(session, payload.participant_ids)
     meeting.title = payload.title
     meeting.description = payload.description
@@ -87,13 +83,13 @@ async def update_meeting(
     meeting.place = payload.place
     await session.commit()
     session.expunge(meeting)
-    return await _get_meeting(session, meeting_id, user)
+    return await _get_meeting(session, meeting_id)
 
 
 @router.delete("/{meeting_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_meeting(meeting_id: uuid.UUID, session: SessionDep, user: CurrentUser) -> Response:
+async def delete_meeting(meeting_id: uuid.UUID, session: SessionDep) -> Response:
     meeting = await session.get(Meeting, meeting_id)
-    if meeting is None or meeting.owner_id != user.id:
+    if meeting is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Meeting not found")
     await session.delete(meeting)
     await session.commit()

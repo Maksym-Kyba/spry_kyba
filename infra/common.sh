@@ -10,7 +10,6 @@ PROJECT_NAME="${PROJECT_NAME:-${APP_NAME:-meetings}}"
 ECR_STACK="$PROJECT_NAME-ecr"
 BACKEND_STACK="$PROJECT_NAME-backend"
 FRONTEND_STACK="$PROJECT_NAME-frontend"
-AUTH_STACK="$PROJECT_NAME-auth"
 # CloudFront only accepts certificates from us-east-1.
 CERT_STACK="$PROJECT_NAME-certificate"
 CERT_REGION="us-east-1"
@@ -61,39 +60,4 @@ update_backend_cors() {
     --parameter-overrides "CorsOrigins=$origins" \
     --tags "${STACK_TAGS[@]}" \
     --no-fail-on-empty-changeset
-}
-
-# app_urls: the origins the frontend runs on (local dev servers, CloudFront, custom domain);
-# Cognito only redirects back (OAuth, e.g. Google) to <origin>/login for these.
-app_urls() {
-  local urls="http://localhost:5173,http://localhost:3000" url
-  if stack_exists "$FRONTEND_STACK"; then
-    for url in "$(output "$FRONTEND_STACK" AppUrl)" "$(output "$FRONTEND_STACK" CustomDomainUrl)"; do
-      [ -n "$url" ] && [ "$url" != "None" ] && urls="$urls,$url"
-    done
-  fi
-  echo "$urls"
-}
-
-# update_auth_urls: points the Cognito app client's redirect URLs at the current frontend
-# addresses. Every other auth parameter (including the Google client) keeps its value.
-update_auth_urls() {
-  stack_exists "$AUTH_STACK" || return 0
-  local urls
-  urls="$(app_urls)"
-  echo "    App URLs: $urls"
-  aws cloudformation deploy \
-    --stack-name "$AUTH_STACK" \
-    --template-file infra/auth.yaml \
-    --parameter-overrides "AppUrls=$urls" \
-    --tags "${STACK_TAGS[@]}" \
-    --no-fail-on-empty-changeset
-}
-
-# require_auth_stack: exits with a hint when Cognito has not been deployed yet.
-require_auth_stack() {
-  stack_exists "$AUTH_STACK" || {
-    echo "Stack $AUTH_STACK not found; run make deploy-auth first." >&2
-    exit 1
-  }
 }

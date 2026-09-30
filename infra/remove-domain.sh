@@ -19,11 +19,10 @@ main() {
     --tags "${STACK_TAGS[@]}" \
     --no-fail-on-empty-changeset
 
-  echo "==> [2/3] Update the API's CORS origins and Cognito's redirect URLs"
+  echo "==> [2/3] Update the API's CORS origins"
   if stack_exists "$BACKEND_STACK"; then
     update_backend_cors
   fi
-  update_auth_urls
 
   echo "==> [3/3] Delete the certificate ($CERT_STACK in $CERT_REGION)"
   if stack_exists "$CERT_STACK" "$CERT_REGION"; then

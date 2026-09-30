@@ -1,6 +1,5 @@
-"""Insert sample participants, and sample meetings for every user who has none yet.
+"""Insert sample participants and meetings.
 
-Users appear in the database on their first signed-in request, so sign up in the app first.
 Safe to run more than once."""
 
 import asyncio
@@ -9,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 
 from app.db import SessionLocal, engine
-from app.models import Meeting, Participant, User
+from app.models import Meeting, Participant
 
 PARTICIPANTS = [
     ("Olena Koval", "olena@example.com"),
@@ -19,7 +18,7 @@ PARTICIPANTS = [
 ]
 
 
-def sample_meetings(owner: User, people: list[Participant]) -> list[Meeting]:
+def sample_meetings(people: list[Participant]) -> list[Meeting]:
     base = datetime.now(UTC).replace(hour=9, minute=0, second=0, microsecond=0)
     return [
         Meeting(
@@ -29,7 +28,6 @@ def sample_meetings(owner: User, people: list[Participant]) -> list[Meeting]:
             ends_at=base + timedelta(days=1, hours=1),
             place="Room 204",
             participants=people[:3],
-            owner_id=owner.id,
         ),
         Meeting(
             title="Design review",
@@ -38,7 +36,6 @@ def sample_meetings(owner: User, people: list[Participant]) -> list[Meeting]:
             ends_at=base + timedelta(days=2, hours=5),
             place="https://meet.example.com/design",
             participants=[people[0], people[3]],
-            owner_id=owner.id,
         ),
         Meeting(
             title="Retrospective",
@@ -46,7 +43,6 @@ def sample_meetings(owner: User, people: list[Participant]) -> list[Meeting]:
             ends_at=base + timedelta(days=5, hours=7, minutes=30),
             place="Main hall",
             participants=people,
-            owner_id=owner.id,
         ),
     ]
 
@@ -58,19 +54,18 @@ async def seed() -> None:
             if email not in existing:
                 existing[email] = Participant(name=name, email=email)
                 session.add(existing[email])
+        await session.flush()
         people = [existing[email] for _, email in PARTICIPANTS]
 
-        owners = set(await session.scalars(select(Meeting.owner_id).distinct()))
-        users = [u for u in await session.scalars(select(User)) if u.id not in owners]
-        for user in users:
-            session.add_all(sample_meetings(user, people))
-        await session.commit()
+        existing_meetings = list(await session.scalars(select(Meeting)))
+        if not existing_meetings:
+            session.add_all(sample_meetings(people))
+            await session.commit()
+            print("Seed data inserted: sample participants and meetings.")
+        else:
+            await session.commit()
+            print("Sample participants inserted. Meetings already exist.")
     await engine.dispose()
-
-    if users:
-        print(f"Seed data inserted; sample meetings for {', '.join(u.email for u in users)}.")
-    else:
-        print("Sample participants inserted. Every user already has meetings (or none signed up).")
 
 
 if __name__ == "__main__":

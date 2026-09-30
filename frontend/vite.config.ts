@@ -6,10 +6,8 @@ import { defineConfig } from 'vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  // The Cognito ids (COGNITO_*) come from the repo's .env locally and from the environment in
-  // Docker and deploy builds. Only VITE_* and COGNITO_* variables reach the bundle.
   envDir: '..',
-  envPrefix: ['VITE_', 'COGNITO_'],
+  envPrefix: ['VITE_'],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

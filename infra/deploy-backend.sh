@@ -9,7 +9,6 @@ main() {
   cd "$(dirname "$0")/.."
   source infra/common.sh
 
-  require_auth_stack
   LAMBDA_MEMORY="${LAMBDA_MEMORY:-512}"
   PASSWORD_PARAM="/$PROJECT_NAME/db-password"
 
@@ -58,12 +57,6 @@ main() {
   fi
 
   echo "==> [4/5] Lambda + database ($BACKEND_STACK)"
-  pool_id="$(output "$AUTH_STACK" UserPoolId)"
-  client_id="$(output "$AUTH_STACK" UserPoolClientId)"
-  # The function has no internet access, so it gets the token signing keys up front.
-  jwks="$(curl -fsS "$(output "$AUTH_STACK" Issuer)/.well-known/jwks.json" \
-    | python3 -c 'import json, sys; print(json.dumps(json.load(sys.stdin), separators=(",", ":")))')"
-  echo "    Cognito: $pool_id (client $client_id)"
   # Includes the frontend's addresses once it is deployed, so a redeploy keeps them.
   cors="$(cors_origins)"
   echo "    CORS origins: $cors"
@@ -78,9 +71,6 @@ main() {
       "DBPassword=$db_password" \
       "MemorySize=$LAMBDA_MEMORY" \
       "CorsOrigins=$cors" \
-      "CognitoUserPoolId=$pool_id" \
-      "CognitoClientId=$client_id" \
-      "CognitoJwks=$jwks" \
     --tags "${STACK_TAGS[@]}" \
     --no-fail-on-empty-changeset
   api_url="$(output "$BACKEND_STACK" ApiUrl)"

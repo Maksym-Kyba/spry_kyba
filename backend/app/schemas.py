@@ -24,14 +24,6 @@ def _require_tz(value: datetime) -> datetime:
 AwareDatetime = Annotated[datetime, AfterValidator(_require_tz)]
 
 
-class UserRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: uuid.UUID
-    email: str
-    name: str
-
-
 class ParticipantCreate(BaseModel):
     name: Annotated[NonEmptyStr, StringConstraints(max_length=100)]
     email: Annotated[EmailStr, StringConstraints(max_length=255)]

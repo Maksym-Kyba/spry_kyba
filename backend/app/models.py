@@ -32,20 +32,6 @@ meeting_participants = Table(
 )
 
 
-class User(Base):
-    """An account in the Cognito user pool, created on its first authenticated request."""
-
-    __tablename__ = "users"
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    # Cognito's stable user id (the token's "sub" claim).
-    cognito_sub: Mapped[str] = mapped_column(String(64), unique=True)
-    # Not unique: a password account and a Google account can share an email.
-    email: Mapped[str] = mapped_column(String(255), index=True)
-    name: Mapped[str] = mapped_column(String(100))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-
 class Participant(Base):
     __tablename__ = "participants"
 
@@ -69,9 +55,6 @@ class Meeting(Base):
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     place: Mapped[str] = mapped_column(String(200))
-    owner_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), index=True
-    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     participants: Mapped[list[Participant]] = relationship(
