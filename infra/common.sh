@@ -10,6 +10,7 @@ PROJECT_NAME="${PROJECT_NAME:-${APP_NAME:-meetings}}"
 ECR_STACK="$PROJECT_NAME-ecr"
 BACKEND_STACK="$PROJECT_NAME-backend"
 FRONTEND_STACK="$PROJECT_NAME-frontend"
+AUTH_STACK="$PROJECT_NAME-auth"
 # CloudFront only accepts certificates from us-east-1.
 CERT_STACK="$PROJECT_NAME-certificate"
 CERT_REGION="us-east-1"
@@ -61,3 +62,18 @@ update_backend_cors() {
     --tags "${STACK_TAGS[@]}" \
     --no-fail-on-empty-changeset
 }
+
+# auth_urls: allowed Cognito redirect and logout URIs matching frontend redirect_uri
+# (http://localhost:5173/, CloudFront site URL, and custom domain if set).
+auth_urls() {
+  local urls="http://localhost:5173/"
+  if stack_exists "$FRONTEND_STACK"; then
+    local app_url custom_url
+    app_url="$(output "$FRONTEND_STACK" AppUrl)"
+    custom_url="$(output "$FRONTEND_STACK" CustomDomainUrl)"
+    [ -n "$app_url" ] && urls="$urls,${app_url%/}/"
+    [ -n "$custom_url" ] && urls="$urls,${custom_url%/}/"
+  fi
+  echo "$urls"
+}
+

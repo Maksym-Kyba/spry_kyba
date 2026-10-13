@@ -7,7 +7,7 @@ s ?=
 
 .DEFAULT_GOAL := help
 .PHONY: help env build up down restart logs ps migrate migration seed psql test lint format \
-	dev-backend dev-frontend install clean deploy deploy-backend deploy-frontend destroy-backend destroy-frontend add-domain remove-domain infra-lint
+	dev-backend dev-frontend install clean deploy deploy-backend deploy-frontend deploy-auth destroy-backend destroy-frontend destroy-auth add-domain remove-domain infra-lint
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(firstword $(MAKEFILE_LIST)) | \
@@ -78,7 +78,9 @@ clean: ## Stop the stack and delete the database volume
 AWS_ENV := AWS_ACCESS_KEY_ID="$(AWS_ACCESS_KEY_ID)" AWS_SECRET_ACCESS_KEY="$(AWS_SECRET_ACCESS_KEY)" \
 	AWS_SESSION_TOKEN="$(AWS_SESSION_TOKEN)" AWS_REGION="$(AWS_REGION)" \
 	PROJECT_NAME="$(or $(PROJECT_NAME),$(APP_NAME))" CORS_ORIGINS_AWS="$(CORS_ORIGINS_AWS)" \
-	LAMBDA_MEMORY="$(LAMBDA_MEMORY)" DOMAIN_NAME="$(DOMAIN_NAME)" HOSTED_ZONE_ID="$(HOSTED_ZONE_ID)"
+	LAMBDA_MEMORY="$(LAMBDA_MEMORY)" DOMAIN_NAME="$(DOMAIN_NAME)" HOSTED_ZONE_ID="$(HOSTED_ZONE_ID)" \
+	COGNITO_DOMAIN_PREFIX="$(COGNITO_DOMAIN_PREFIX)" GOOGLE_CLIENT_ID="$(GOOGLE_CLIENT_ID)" \
+	GOOGLE_CLIENT_SECRET="$(GOOGLE_CLIENT_SECRET)"
 
 deploy: deploy-backend deploy-frontend ## Deploy the whole app to AWS
 
@@ -87,6 +89,9 @@ deploy-backend: env ## Deploy backend (Lambda) + database (Aurora Serverless) to
 
 deploy-frontend: env ## Deploy frontend to S3 + CloudFront, wired to the Lambda URL (after deploy-backend)
 	@$(AWS_ENV) ./infra/deploy-frontend.sh
+
+deploy-auth: env ## Deploy Amazon Cognito auth stack, wired to the frontend URL (after deploy-frontend)
+	@$(AWS_ENV) ./infra/deploy-auth.sh
 
 add-domain: env ## Attach DOMAIN_NAME from .env to the deployed frontend
 	@$(AWS_ENV) ./infra/add-domain.sh
@@ -99,6 +104,9 @@ destroy-backend: env ## Delete the AWS backend stacks (keeps a final DB snapshot
 
 destroy-frontend: env ## Delete the S3 bucket, CloudFront distribution and domain certificate
 	@$(AWS_ENV) ./infra/destroy-frontend.sh
+
+destroy-auth: env ## Delete the Amazon Cognito auth stack
+	@$(AWS_ENV) ./infra/destroy-auth.sh
 
 infra-lint: ## Lint the CloudFormation templates
 	uvx cfn-lint infra/*.yaml

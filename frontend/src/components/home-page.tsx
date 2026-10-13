@@ -12,8 +12,13 @@ import { useMeetings } from '@/lib/queries'
 import type { Meeting } from '@/lib/api'
 import { STEP_DAYS, visibleDays, type ViewMode } from '@/lib/calendar'
 import { formatRange } from '@/lib/format'
+import { Link } from 'react-router'
+import { useAuth } from 'react-oidc-context'
+import { isAuthEnabled, signOut } from '@/lib/auth'
 
 export function HomePage() {
+  const auth = useAuth()
+  const userEmail = (auth.user?.profile as { email?: string } | undefined)?.email
   const meetings = useMeetings()
   const [mode, setMode] = useState<ViewMode>('list')
   const [anchor, setAnchor] = useState<Date>(() => new Date())
@@ -69,6 +74,26 @@ export function HomePage() {
             <PlusIcon />
             <span className="max-sm:hidden">Add meeting</span>
           </Button>
+          {isAuthEnabled &&
+            (auth.isAuthenticated ? (
+              <div className="flex items-center gap-2">
+                {userEmail && (
+                  <span
+                    className="text-muted-foreground hidden max-w-[180px] truncate text-xs sm:inline"
+                    title={userEmail}
+                  >
+                    {userEmail}
+                  </span>
+                )}
+                <Button variant="outline" size="sm" onClick={() => void signOut(auth)}>
+                  Sign out
+                </Button>
+              </div>
+            ) : (
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/login">Sign in</Link>
+              </Button>
+            ))}
         </div>
       </header>
       <div className="hairline" />

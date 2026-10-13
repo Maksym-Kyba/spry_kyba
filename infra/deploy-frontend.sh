@@ -12,8 +12,22 @@ main() {
   stack_exists "$BACKEND_STACK" || { echo "Stack $BACKEND_STACK not found; run make deploy-backend first." >&2; exit 1; }
   api_base_url="$(output "$BACKEND_STACK" ApiBaseUrl)"
 
-  echo "==> [1/5] Build the frontend (API: $api_base_url)"
-  (cd frontend && npm ci && VITE_API_URL="$api_base_url" npm run build)
+  auth_client_id=""
+  auth_authority=""
+  auth_domain=""
+  if stack_exists "$AUTH_STACK"; then
+    auth_client_id="$(output "$AUTH_STACK" UserPoolClientId)"
+    auth_authority="$(output "$AUTH_STACK" Authority)"
+    auth_domain="$(output "$AUTH_STACK" CognitoDomain)"
+  fi
+
+  echo "==> [1/5] Build the frontend (API: $api_base_url, Auth: ${auth_client_id:-none})"
+  (cd frontend && npm ci && \
+    VITE_API_URL="$api_base_url" \
+    VITE_COGNITO_CLIENT_ID="$auth_client_id" \
+    VITE_COGNITO_AUTHORITY="$auth_authority" \
+    VITE_COGNITO_DOMAIN="$auth_domain" \
+    npm run build)
 
   echo "==> [2/5] S3 bucket + CloudFront ($FRONTEND_STACK)"
   echo "    The first run creates the CloudFront distribution and takes about 5 minutes."
@@ -49,6 +63,7 @@ main() {
   custom_url="$(output "$FRONTEND_STACK" CustomDomainUrl)"
   [ -z "$custom_url" ] || echo "     $custom_url"
   echo "API: $api_base_url/api"
+  [ -z "$auth_client_id" ] || echo "Auth: $auth_authority ($auth_client_id)"
   if [ -n "${DOMAIN_NAME:-}" ] && [ "$custom_url" != "https://$DOMAIN_NAME" ]; then
     echo
     echo "DOMAIN_NAME=$DOMAIN_NAME in .env is not attached yet; run make add-domain."
