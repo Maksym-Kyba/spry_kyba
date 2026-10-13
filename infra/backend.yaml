@@ -92,6 +92,28 @@ Resources:
         - Key: PROJECT_NAME
           Value: !Ref ProjectName
 
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub ${ProjectName}-private-rt
+        - Key: PROJECT_NAME
+          Value: !Ref ProjectName
+
+  SubnetRouteTableAssociationA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetA
+      RouteTableId: !Ref PrivateRouteTable
+
+  SubnetRouteTableAssociationB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetB
+      RouteTableId: !Ref PrivateRouteTable
+
   # --------------------------------------------------------- Security groups
   FunctionSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -279,3 +301,18 @@ Outputs:
     Value: !GetAtt Database.Endpoint.Address
   LogGroup:
     Value: !Ref LogGroup
+  VpcId:
+    Value: !Ref Vpc
+  RouteTableId:
+    Description: Route table associated with PrivateSubnetA and PrivateSubnetB
+    Value: !Ref PrivateRouteTable
+  PrivateSubnetA:
+    Value: !Ref PrivateSubnetA
+  PrivateSubnetB:
+    Value: !Ref PrivateSubnetB
+  SubnetIds:
+    Value: !Sub "${PrivateSubnetA},${PrivateSubnetB}"
+  FunctionSecurityGroup:
+    Value: !Ref FunctionSecurityGroup
+  ImageUri:
+    Value: !Ref ImageUri

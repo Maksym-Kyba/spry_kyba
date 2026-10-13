@@ -11,6 +11,7 @@ dependencies = [
     "pydantic[email]>=2.13.5",
     "sqlalchemy[asyncio]>=2.0.54",
     "uvicorn[standard]>=0.53.0",
+    "boto3>=1.35.0",
 ]
 
 [dependency-groups]
