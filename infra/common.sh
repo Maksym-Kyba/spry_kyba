@@ -12,6 +12,7 @@ BACKEND_STACK="$PROJECT_NAME-backend"
 FRONTEND_STACK="$PROJECT_NAME-frontend"
 AUTH_STACK="$PROJECT_NAME-auth"
 REPORTS_STACK="$PROJECT_NAME-reports"
+AI_STACK="$PROJECT_NAME-ai"
 # CloudFront only accepts certificates from us-east-1.
 CERT_STACK="$PROJECT_NAME-certificate"
 CERT_REGION="us-east-1"
@@ -78,3 +79,14 @@ auth_urls() {
   echo "$urls"
 }
 
+# ai_origins: origins allowed to call the agenda parser function URL (no trailing slash).
+ai_origins() {
+  local origins="http://localhost:5173" app_url custom_url
+  if stack_exists "$FRONTEND_STACK"; then
+    app_url="$(output "$FRONTEND_STACK" AppUrl)"
+    custom_url="$(output "$FRONTEND_STACK" CustomDomainUrl)"
+    [ -n "$app_url" ] && origins="$origins,${app_url%/}"
+    [ -n "$custom_url" ] && origins="$origins,${custom_url%/}"
+  fi
+  echo "$origins"
+}

@@ -7,7 +7,8 @@ s ?=
 
 .DEFAULT_GOAL := help
 .PHONY: help env build up down restart logs ps migrate migration seed psql test lint format \
-	dev-backend dev-frontend install clean deploy deploy-backend deploy-frontend deploy-auth deploy-reports destroy-backend destroy-frontend destroy-auth destroy-reports report-now add-domain remove-domain infra-lint
+	dev-backend dev-frontend install clean deploy deploy-backend deploy-frontend deploy-auth deploy-reports destroy-backend destroy-frontend destroy-auth destroy-reports report-now add-domain remove-domain infra-lint \
+	llm-hello parse
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(firstword $(MAKEFILE_LIST)) | \
@@ -81,7 +82,8 @@ AWS_ENV := AWS_ACCESS_KEY_ID="$(AWS_ACCESS_KEY_ID)" AWS_SECRET_ACCESS_KEY="$(AWS
 	LAMBDA_MEMORY="$(LAMBDA_MEMORY)" DOMAIN_NAME="$(DOMAIN_NAME)" HOSTED_ZONE_ID="$(HOSTED_ZONE_ID)" \
 	COGNITO_DOMAIN_PREFIX="$(COGNITO_DOMAIN_PREFIX)" GOOGLE_CLIENT_ID="$(GOOGLE_CLIENT_ID)" \
 	GOOGLE_CLIENT_SECRET="$(GOOGLE_CLIENT_SECRET)" \
-	REPORT_DOMAIN="$(REPORT_DOMAIN)" REPORT_EMAIL="$(REPORT_EMAIL)" SCHEDULE_EXPRESSION="$(SCHEDULE_EXPRESSION)"
+	REPORT_DOMAIN="$(REPORT_DOMAIN)" REPORT_EMAIL="$(REPORT_EMAIL)" SCHEDULE_EXPRESSION="$(SCHEDULE_EXPRESSION)" \
+	PARSER_API="$(PARSER_API)" PARSER_MODEL="$(PARSER_MODEL)"
 
 deploy: deploy-backend deploy-frontend ## Deploy the whole app to AWS
 
@@ -129,5 +131,20 @@ destroy-auth: env ## Delete the Amazon Cognito auth stack
 destroy-reports: env ## Delete the weekly reports stack
 	@$(AWS_ENV) ./infra/destroy-reports.sh
 
+llm-hello: env ## Test Bedrock Mantle Claude connection (first snippet from Part 1)
+	@$(AWS_ENV) bash -c 'cd backend && uv run python -m app.ai.hello'
+
+parse: env ## Parse agenda text with Claude on Bedrock: make parse TEXT="..."
+	@test -n "$(TEXT)" || (echo 'Usage: make parse TEXT="agenda text"' && exit 1)
+	@$(AWS_ENV) bash -c 'cd backend && uv run python -m app.ai.agenda "$$TEXT"'
+
 infra-lint: ## Lint the CloudFormation templates
 	uvx cfn-lint infra/*.yaml
+
+.PHONY: deploy-ai destroy-ai
+
+deploy-ai: env ## Deploy the agenda parser (Lambda + Bedrock), after deploy-backend, deploy-frontend and deploy-auth
+	@$(AWS_ENV) ./infra/deploy-ai.sh
+
+destroy-ai: env ## Delete the agenda parser stack
+	@$(AWS_ENV) ./infra/destroy-ai.sh

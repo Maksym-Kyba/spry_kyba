@@ -12,6 +12,8 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.54",
     "uvicorn[standard]>=0.53.0",
     "boto3>=1.35.0",
+    "anthropic[bedrock]>=0.40.0",
+    "pyjwt[crypto]>=2.10.0",
 ]
 
 [dependency-groups]

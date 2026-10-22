@@ -1,0 +1,149 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Agenda parser Lambda stack: FastAPI running behind AWS Lambda Web Adapter outside the VPC,
+  invoking Claude on Amazon Bedrock.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: meetings
+    AllowedPattern: "[a-z][a-z0-9-]*"
+  ImageUri:
+    Type: String
+    Description: Full backend image URI including tag
+  ParserModel:
+    Type: String
+    Description: Bedrock foundation model or inference profile ID
+  ParserApi:
+    Type: String
+    Default: runtime
+    Description: Client type (runtime or mantle)
+  CognitoUserPoolId:
+    Type: String
+    Description: Cognito User Pool ID for token verification
+  CognitoClientId:
+    Type: String
+    Description: Cognito App Client ID for token verification
+  AllowedOrigins:
+    Type: CommaDelimitedList
+    Description: Origins allowed to make cross-origin requests to the parser function URL
+
+Resources:
+  # ---------------------------------------------------------------- Logs
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /${ProjectName}/ai
+      RetentionInDays: 14
+      Tags:
+        - Key: PROJECT_NAME
+          Value: !Ref ProjectName
+
+  # ---------------------------------------------------------------- IAM Role
+  FunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: BedrockInvokePolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource:
+                  - !Sub arn:${AWS::Partition}:bedrock:*::foundation-model/anthropic.*
+                  - !Sub arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*
+              # Bedrock Mantle inference action; should be narrowed when specific resource ARNs are published.
+              - Effect: Allow
+                Action:
+                  - bedrock-mantle:CreateInference
+                Resource: "*"
+      Tags:
+        - Key: PROJECT_NAME
+          Value: !Ref ProjectName
+
+  # ---------------------------------------------------------------- Lambda Function
+  Function:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${ProjectName}-ai
+      PackageType: Image
+      Code:
+        ImageUri: !Ref ImageUri
+      Architectures: [arm64]
+      MemorySize: 512
+      Timeout: 30
+      Role: !GetAtt FunctionRole.Arn
+      ImageConfig:
+        Command:
+          - uvicorn
+          - app.ai.agenda_app:app
+          - --host
+          - 0.0.0.0
+          - --port
+          - "8000"
+      LoggingConfig:
+        LogGroup: !Ref LogGroup
+      Environment:
+        Variables:
+          PARSER_MODEL: !Ref ParserModel
+          PARSER_API: !Ref ParserApi
+          COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
+          COGNITO_CLIENT_ID: !Ref CognitoClientId
+          AWS_LWA_PORT: "8000"
+          AWS_LWA_READINESS_CHECK_PATH: /health
+          AWS_LWA_ASYNC_INIT: "true"
+      Tags:
+        - Key: PROJECT_NAME
+          Value: !Ref ProjectName
+
+  # ---------------------------------------------------------------- Lambda Function URL
+  FunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !GetAtt Function.Arn
+      AuthType: NONE
+      Cors:
+        AllowOrigins: !Ref AllowedOrigins
+        AllowMethods:
+          - POST
+        AllowHeaders:
+          - authorization
+          - content-type
+
+  FunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Function
+      Action: lambda:InvokeFunctionUrl
+      Principal: "*"
+      FunctionUrlAuthType: NONE
+
+  FunctionInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Function
+      Action: lambda:InvokeFunction
+      Principal: "*"
+      InvokedViaFunctionUrl: true
+
+Outputs:
+  ParserUrl:
+    Description: Public Lambda Function URL without trailing slash for the agenda parser
+    Value: !Sub
+      - https://${Domain}
+      - Domain: !Select [2, !Split ["/", !GetAtt FunctionUrl.FunctionUrl]]
+  FunctionName:
+    Description: Lambda Function Name for agenda parser
+    Value: !Ref Function

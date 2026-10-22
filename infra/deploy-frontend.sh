@@ -21,12 +21,18 @@ main() {
     auth_domain="$(output "$AUTH_STACK" CognitoDomain)"
   fi
 
-  echo "==> [1/5] Build the frontend (API: $api_base_url, Auth: ${auth_client_id:-none})"
+  parser_url=""
+  if stack_exists "$AI_STACK"; then
+    parser_url="$(output "$AI_STACK" ParserUrl)"
+  fi
+
+  echo "==> [1/5] Build the frontend (API: $api_base_url, Auth: ${auth_client_id:-none}, Parser: ${parser_url:-none})"
   (cd frontend && npm ci && \
     VITE_API_URL="$api_base_url" \
     VITE_COGNITO_CLIENT_ID="$auth_client_id" \
     VITE_COGNITO_AUTHORITY="$auth_authority" \
     VITE_COGNITO_DOMAIN="$auth_domain" \
+    VITE_PARSER_URL="$parser_url" \
     npm run build)
 
   echo "==> [2/5] S3 bucket + CloudFront ($FRONTEND_STACK)"

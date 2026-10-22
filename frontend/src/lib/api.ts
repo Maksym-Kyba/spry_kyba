@@ -1,3 +1,5 @@
+import { format } from 'date-fns'
+
 export type Participant = {
   id: string
   name: string
@@ -12,6 +14,8 @@ export type Meeting = {
   ends_at: string
   place: string
   participants: Participant[]
+  agenda: string
+  ai_suggestion: AiSuggestion | null
   created_at: string
 }
 
@@ -22,6 +26,8 @@ export type MeetingCreate = {
   ends_at: string
   place: string
   participant_ids: string[]
+  agenda?: string
+  ai_suggestion?: AiSuggestion
 }
 
 export type ParticipantCreate = {
@@ -79,6 +85,76 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (response.status === 204) return undefined as T
   return response.json() as Promise<T>
+}
+
+export type ParsedAgendaItem = {
+  topic: string
+  owner?: string | null
+  minutes?: number | null
+}
+
+export type ParsedActionItem = {
+  task: string
+  owner?: string | null
+  due?: string | null
+}
+
+export type ParsedAgenda = {
+  title?: string | null
+  starts_at?: string | null
+  duration_minutes?: number | null
+  items: ParsedAgendaItem[]
+  action_items: ParsedActionItem[]
+  language: string
+}
+
+export type ParseAgendaResult = {
+  agenda: ParsedAgenda
+  rendered_text: string
+  model: string
+  prompt_version: string
+}
+
+/** What the model suggested; saved next to the final agenda as the quality signal. */
+export type AiSuggestion = {
+  agenda: ParsedAgenda
+  model: string
+  prompt_version: string
+}
+
+// The agenda parser is a separate Lambda function URL, baked in at build time.
+const PARSER_URL = (import.meta.env.VITE_PARSER_URL ?? '').replace(/\/+$/, '')
+export const isParserEnabled = PARSER_URL !== ''
+
+export async function parseAgenda(
+  text: string,
+  token: string,
+  signal: AbortSignal,
+): Promise<ParseAgendaResult> {
+  const response = await fetch(`${PARSER_URL}/parse`, {
+    method: 'POST',
+    signal,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      text,
+      today: format(new Date(), 'yyyy-MM-dd'),
+      tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    }),
+  })
+
+  if (!response.ok) {
+    let detail: unknown
+    try {
+      detail = (await response.json()).detail
+    } catch {
+      // body was not JSON
+    }
+    throw new ApiError(response.status, errorMessage(detail, response.statusText))
+  }
+  return response.json() as Promise<ParseAgendaResult>
 }
 
 export const api = {

@@ -14,9 +14,7 @@ router = APIRouter(prefix="/meetings", tags=["meetings"])
 
 async def _get_meeting(session: AsyncSession, meeting_id: uuid.UUID) -> Meeting:
     meeting = await session.scalar(
-        select(Meeting)
-        .options(selectinload(Meeting.participants))
-        .where(Meeting.id == meeting_id)
+        select(Meeting).options(selectinload(Meeting.participants)).where(Meeting.id == meeting_id)
     )
     if meeting is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Meeting not found")
@@ -54,6 +52,12 @@ async def _get_participants(
     return participants
 
 
+def _ai_suggestion(payload: MeetingCreate) -> dict | None:
+    if payload.ai_suggestion is None:
+        return None
+    return payload.ai_suggestion.model_dump(mode="json")
+
+
 @router.post("", response_model=MeetingRead, status_code=status.HTTP_201_CREATED)
 async def create_meeting(payload: MeetingCreate, session: SessionDep) -> Meeting:
     participants = await _get_participants(session, payload.participant_ids)
@@ -63,6 +67,8 @@ async def create_meeting(payload: MeetingCreate, session: SessionDep) -> Meeting
         starts_at=payload.starts_at,
         ends_at=payload.ends_at,
         place=payload.place,
+        agenda=payload.agenda,
+        ai_suggestion=_ai_suggestion(payload),
         participants=participants,
     )
     session.add(meeting)
@@ -81,6 +87,11 @@ async def update_meeting(
     meeting.starts_at = payload.starts_at
     meeting.ends_at = payload.ends_at
     meeting.place = payload.place
+    # PUT keeps the stored agenda and suggestion unless the client sends them
+    if "agenda" in payload.model_fields_set:
+        meeting.agenda = payload.agenda
+    if "ai_suggestion" in payload.model_fields_set:
+        meeting.ai_suggestion = _ai_suggestion(payload)
     await session.commit()
     session.expunge(meeting)
     return await _get_meeting(session, meeting_id)
