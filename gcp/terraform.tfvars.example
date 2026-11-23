@@ -1,0 +1,5 @@
+project_id       = "replace-with-your-project-id"
+firebase_site_id = "replace-with-globally-unique-site"
+region           = "us-central1"
+api_image        = "us-central1-docker.pkg.dev/replace-with-your-project-id/spry/backend:latest"
+cors_origins     = ["https://replace-with-globally-unique-site.web.app"]

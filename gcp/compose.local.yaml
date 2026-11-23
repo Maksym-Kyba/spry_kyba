@@ -1,0 +1,30 @@
+name: spry-lab9
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: lab9
+      POSTGRES_PASSWORD: lab9-local-only
+      POSTGRES_DB: lab9
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lab9 -d lab9"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - lab9-db:/var/lib/postgresql/data
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.cloudrun
+    environment:
+      PORT: "8080"
+      DATABASE_URL: postgresql+asyncpg://lab9:lab9-local-only@db:5432/lab9
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  lab9-db:
