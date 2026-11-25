@@ -1,18 +1,10 @@
 Initializing provider plugins...
-- Finding hashicorp/random versions matching "~> 3.6"...
-- Finding hashicorp/google versions matching "~> 6.0"...
-- Finding hashicorp/google-beta versions matching "~> 6.0"...
-- Installing hashicorp/random v3.9.1...
-- Installed hashicorp/random v3.9.1 (signed by HashiCorp)
-- Installing hashicorp/google v6.50.0...
-- Installed hashicorp/google v6.50.0 (signed by HashiCorp)
-- Installing hashicorp/google-beta v6.50.0...
-- Installed hashicorp/google-beta v6.50.0 (signed by HashiCorp)
-
-Terraform has created a lock file .terraform.lock.hcl to record the provider
-selections it made above. Include this file in your version control repository
-so that Terraform can guarantee to make the same selections by default when
-you run "terraform init" in the future.
+- Reusing version 6.50.0 of hashicorp/google from the dependency lock file
+- Reusing version 6.50.0 of hashicorp/google-beta from the dependency lock file
+- Reusing version 3.9.1 of hashicorp/random from the dependency lock file
+- Using previously-installed hashicorp/google v6.50.0
+- Using previously-installed hashicorp/google-beta v6.50.0
+- Using previously-installed hashicorp/random v3.9.1
 
 Terraform has been successfully initialized!
 
